@@ -1,0 +1,12 @@
+# JSON 格式化工具依赖包
+# 适用于 Python 3.12.3
+
+# GUI 框架
+PyQt5==5.15.10
+
+# 打包工具
+PyInstaller==6.3.0
+
+# 其他可能需要的包
+altgraph==0.17.4
+pyinstaller-hooks-contrib==2023.10

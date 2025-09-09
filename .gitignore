@@ -1,0 +1,67 @@
+# IDE and Editor files
+.idea/
+.vscode/
+.trae/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Operating System
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Project specific
+# Build outputs
+*.exe
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.backup
+
+# Test files
+test_*.py
+*_test.py
+tests/
