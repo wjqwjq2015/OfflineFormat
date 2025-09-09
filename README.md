@@ -286,8 +286,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 👨‍💻 Author
 
 - **Author**: wangjunqi
-- **Current Version**: 1.2
-- **Development Period**: 2024-2025
+- **Current Version**: 0.1
+- **Development Period**: 2025.09
 
 ## ⭐ Support the Project
 
@@ -295,7 +295,7 @@ If this project helps you, please give it a ⭐ Star!
 
 ## 🌐 Language Versions
 
-- [中文文档](README.md) - Chinese Documentation
+- [中文文档](README_ZH.md) - Chinese Documentation
 - [English Documentation](README_EN.md) - This file
 
 ---
