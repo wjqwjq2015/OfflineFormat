@@ -1,35 +1,37 @@
 不同语言: 
 [中文文档](README_ZH.md)
 
-# 🔹 Offline JSON Formatter
+# 🔹 Offline Format Tool (JSON & XML)
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![PyQt5](https://img.shields.io/badge/PyQt5-5.15+-green.svg)](https://pypi.org/project/PyQt5/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)]()
 
-A powerful offline JSON formatting desktop application built with Python + PyQt5, providing Postman Beautify-like
-functionality with additional features including JSON sorting, compression, validation, and advanced search & replace
-capabilities.
+A powerful offline formatting desktop application built with Python + PyQt5, supporting both JSON and XML formats.
+Provides Postman Beautify-like functionality with additional features including sorting, compression, validation, tree
+view, and advanced search & replace capabilities.
 
 ## 🌟 Key Features
 
 - 🚀 **Completely Offline**: No internet connection required, protecting your data privacy
 - 🎨 **Modern Interface**: Beautiful GUI design with embedded search and replace functionality
 - ⚡ **High Performance**: Built on PyQt5 for fast and responsive user experience
-- 🔧 **Multiple Formatting Options**: Beautify, sort, minify, and validate JSON with ease
+- 🔧 **Multiple Formatting Options**: Beautify, sort, minify, and validate JSON & XML with ease
+- 📄 **Dual Format Support**: Seamlessly switch between JSON and XML processing modes
 - 📋 **Convenient Operations**: One-click copy, clear, with keyboard shortcuts support
 - 🎯 **Precise Search**: Case-sensitive and whole-word matching search & replace
 - 🌈 **Smart Highlighting**: Modern blue background with white text and bold formatting for search results
-- 🌳 **Tree View**: Expandable/collapsible JSON structure tree for intuitive hierarchy visualization
+- 🌳 **Tree View**: Expandable/collapsible JSON & XML structure tree for intuitive hierarchy visualization
 - 🔄 **Dual View Mode**: Text view and tree view with real-time synchronization
 
 ## 📸 Screenshots
 
 *Main Interface*
 
-- Left panel: JSON input area (editable)
-- Right panel: JSON output area (read-only)
+- Top: Format selector (JSON/XML) with seamless switching
+- Left panel: Input area (editable) - supports both JSON and XML
+- Right panel: Output area (read-only) with dual view mode (Text/Tree)
 - Bottom: Function buttons and embedded search/replace tools
 
 ## 🚀 Quick Start
@@ -56,22 +58,31 @@ python main.py
 
 ## 📋 Core Functions
 
-### 🎨 JSON Operations
+### 🎨 Format Operations
 
-- **Beautify**: Format JSON with proper indentation (4 spaces)
-- **Sort**: Sort JSON keys alphabetically and beautify
-- **Minify**: Compress JSON to single line
-- **Validate**: Check JSON syntax validity
+#### JSON & XML Support
+
+- **Beautify**: Format JSON/XML with proper indentation (4 spaces)
+- **Sort**: Sort JSON keys or XML elements alphabetically and beautify
+- **Minify**: Compress JSON/XML to single line
+- **Validate**: Check JSON/XML syntax validity
 - **Copy**: Copy formatted result to clipboard
 - **Expand All**: Expand all nodes in tree view
 - **Collapse All**: Collapse all nodes in tree view
 - **Clear**: Clear both input and output areas
 
+#### Format Switching
+
+- **Seamless Toggle**: Switch between JSON and XML modes instantly
+- **Auto UI Update**: Interface adapts automatically to selected format
+- **Independent Processing**: Each format maintains its own processing logic
+
 ### 🌳 Dual View Display
 
 - **Text View**: Traditional text format display with search and replace support
-- **Tree View**: Interactive JSON structure tree with expandable/collapsible nodes
+- **Tree View**: Interactive JSON/XML structure tree with expandable/collapsible nodes
 - **Tab Switching**: Seamlessly switch between views with real-time data synchronization
+- **Format-Aware Trees**: Dedicated tree widgets for JSON and XML with format-specific rendering
 
 ### 🔍 Search & Replace
 
@@ -131,7 +142,7 @@ build_small.bat
 
 ## 📖 Usage Examples
 
-### Basic JSON Formatting
+### JSON Formatting
 
 **Input:**
 
@@ -167,6 +178,42 @@ build_small.bat
 }
 ```
 
+### XML Formatting
+
+**Input:**
+
+```xml
+<person><name>John Doe</name><age>30</age><city>New York</city><skills><skill>Python</skill><skill>JavaScript</skill></skills></person>
+```
+
+**After Beautify:**
+
+```xml
+<person>
+    <name>John Doe</name>
+    <age>30</age>
+    <city>New York</city>
+    <skills>
+        <skill>Python</skill>
+        <skill>JavaScript</skill>
+    </skills>
+</person>
+```
+
+**After Sort:**
+
+```xml
+<person>
+    <age>30</age>
+    <city>New York</city>
+    <name>John Doe</name>
+    <skills>
+        <skill>JavaScript</skill>
+        <skill>Python</skill>
+    </skills>
+</person>
+```
+
 ### Search & Replace Operations
 
 1. **Open Search**: Press `Ctrl+F` or click the search button
@@ -182,6 +229,7 @@ build_small.bat
 - **Language**: Python 3.8+
 - **GUI Framework**: PyQt5 5.15+
 - **JSON Processing**: Python standard library `json`
+- **XML Processing**: Python standard library `xml.etree.ElementTree`
 - **Packaging**: PyInstaller 6.3.0
 
 ### Project Structure

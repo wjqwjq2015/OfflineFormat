@@ -9,12 +9,16 @@
 
 import sys
 import json
+import xml.etree.ElementTree as ET
+import xml.dom.minidom as minidom
+from xml.parsers.expat import ExpatError
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QPushButton, QLabel, QMessageBox, QSplitter,
     QFrame, QStatusBar, QTabWidget, QSpinBox,
     QFormLayout, QGroupBox, QLineEdit, QCheckBox, QShortcut,
-    QTreeWidget, QTreeWidgetItem, QHeaderView, QAbstractItemView
+    QTreeWidget, QTreeWidgetItem, QHeaderView, QAbstractItemView,
+    QComboBox
 )
 from PyQt5.QtCore import Qt, QTimer, QSettings
 from PyQt5.QtGui import QFont, QKeySequence, QTextCursor, QTextCharFormat, QColor, QTextDocument
@@ -210,6 +214,159 @@ class JSONTreeWidget(QTreeWidget):
         return path
 
 
+class XMLTreeWidget(QTreeWidget):
+    """
+    自定义XML树形视图组件
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_tree()
+
+    def setup_tree(self):
+        """
+        设置树形视图的基本属性
+        """
+        # 设置列标题
+        self.setHeaderLabels(["元素/属性", "值", "类型"])
+
+        # 设置列宽
+        header = self.header()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+
+        # 设置选择模式
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
+
+        # 设置样式（与JSON树形视图相同）
+        self.setStyleSheet("""
+            QTreeWidget {
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                background-color: white;
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                font-size: 24px;
+                alternate-background-color: #f8f9fa;
+            }
+            QTreeWidget::item {
+                padding: 6px;
+                border-bottom: 1px solid #ecf0f1;
+                height: 24px;
+            }
+            QTreeWidget::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+            QTreeWidget::item:hover {
+                background-color: #e8f4fd;
+            }
+            QTreeWidget::branch:has-children:!has-siblings:closed,
+            QTreeWidget::branch:closed:has-children:has-siblings {
+                border-image: none;
+                image: none;
+                background-color: #27ae60;
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                margin: 1px;
+                border: 2px solid #2ecc71;
+            }
+            QTreeWidget::branch:open:has-children:!has-siblings,
+            QTreeWidget::branch:open:has-children:has-siblings {
+                border-image: none;
+                image: none;
+                background-color: #e74c3c;
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                margin: 1px;
+                border: 2px solid #c0392b;
+            }
+            QTreeWidget::branch:has-children:!has-siblings:closed:hover,
+            QTreeWidget::branch:closed:has-children:has-siblings:hover {
+                background-color: #229954;
+                border: 2px solid #27ae60;
+            }
+            QTreeWidget::branch:open:has-children:!has-siblings:hover,
+            QTreeWidget::branch:open:has-children:has-siblings:hover {
+                background-color: #cb4335;
+                border: 2px solid #e74c3c;
+            }
+        """)
+
+        # 启用交替行颜色
+        self.setAlternatingRowColors(True)
+
+        # 设置根节点装饰
+        self.setRootIsDecorated(True)
+
+        # 设置动画效果
+        self.setAnimated(True)
+
+    def populate_tree(self, xml_root):
+        """
+        填充XML树形视图数据
+        """
+        self.clear()
+
+        if xml_root is None:
+            return
+
+        # 创建根节点
+        root_item = QTreeWidgetItem([xml_root.tag, xml_root.text or "", "Element"])
+        self.addTopLevelItem(root_item)
+
+        # 添加根元素的属性
+        if xml_root.attrib:
+            for attr_name, attr_value in xml_root.attrib.items():
+                attr_item = QTreeWidgetItem([f"@{attr_name}", attr_value, "Attribute"])
+                root_item.addChild(attr_item)
+
+        # 递归添加子元素
+        self._add_xml_elements(root_item, xml_root)
+
+        # 展开根节点
+        self.expandToDepth(0)
+
+    def _add_xml_elements(self, parent_item, xml_element):
+        """
+        递归添加XML元素到树中
+        """
+        for child in xml_element:
+            # 创建子元素节点
+            child_text = child.text.strip() if child.text else ""
+            child_item = QTreeWidgetItem([child.tag, child_text, "Element"])
+            parent_item.addChild(child_item)
+
+            # 添加子元素的属性
+            if child.attrib:
+                for attr_name, attr_value in child.attrib.items():
+                    attr_item = QTreeWidgetItem([f"@{attr_name}", attr_value, "Attribute"])
+                    child_item.addChild(attr_item)
+
+            # 递归处理子元素的子元素
+            if len(child) > 0:
+                self._add_xml_elements(child_item, child)
+
+    def get_selected_path(self):
+        """
+        获取选中项的路径
+        """
+        current_item = self.currentItem()
+        if not current_item:
+            return []
+
+        path = []
+        item = current_item
+        while item and item.parent():
+            path.insert(0, item.text(0))
+            item = item.parent()
+
+        return path
+
+
 class JSONFormatterApp(QMainWindow):
     """
     JSON 格式化工具主窗口类
@@ -225,6 +382,9 @@ class JSONFormatterApp(QMainWindow):
         self.current_text_font_size = self.settings.value('text_font_size', 12, type=int)  # 文本编辑器字体
         self.current_ui_font_size = self.settings.value('ui_font_size', 14, type=int)  # UI元素字体
         self.temp_ui_font_size = self.current_ui_font_size  # 临时UI字体大小，用于保存前的预览
+
+        # 当前格式类型（JSON或XML）
+        self.current_format = 'JSON'
 
         # 初始化搜索相关变量
         self.input_search_widget = None
@@ -257,7 +417,7 @@ class JSONFormatterApp(QMainWindow):
         初始化用户界面
         """
         # 设置窗口基本属性
-        self.setWindowTitle('离线 JSON 格式化工具 v1.0')
+        self.setWindowTitle('离线 JSON/XML 格式化工具 v1.0')
         self.setGeometry(100, 100, 1200, 800)
         self.setMinimumSize(800, 600)
 
@@ -276,7 +436,7 @@ class JSONFormatterApp(QMainWindow):
 
         # 创建主功能标签页
         main_tab = QWidget()
-        self.tab_widget.addTab(main_tab, "JSON 格式化")
+        self.tab_widget.addTab(main_tab, "格式化工具")
 
         # 创建选项标签页
         options_tab = QWidget()
@@ -287,8 +447,11 @@ class JSONFormatterApp(QMainWindow):
         main_tab_layout.setContentsMargins(10, 10, 10, 10)
         main_tab_layout.setSpacing(10)
 
+        # 创建标题和格式选择区域
+        title_format_layout = QHBoxLayout()
+        
         # 创建简化的标题标签（减少占用空间）
-        self.title_label = QLabel('JSON 格式化工具')
+        self.title_label = QLabel('格式化工具')
         self.title_label.setAlignment(Qt.AlignCenter)
         self.title_label.setStyleSheet("""
             QLabel {
@@ -301,7 +464,51 @@ class JSONFormatterApp(QMainWindow):
                 margin-bottom: 5px;
             }
         """)
-        main_tab_layout.addWidget(self.title_label)
+        title_format_layout.addWidget(self.title_label)
+
+        # 添加格式选择下拉框
+        format_label = QLabel('格式类型：')
+        format_label.setStyleSheet("""
+            QLabel {
+                font-size: 16px;
+                font-weight: bold;
+                color: #2c3e50;
+                padding: 5px;
+            }
+        """)
+        title_format_layout.addWidget(format_label)
+
+        self.format_combo = QComboBox()
+        self.format_combo.addItems(['JSON', 'XML'])
+        self.format_combo.setCurrentText('JSON')
+        self.format_combo.setStyleSheet("""
+            QComboBox {
+                padding: 5px;
+                border: 1px solid #bdc3c7;
+                border-radius: 3px;
+                background-color: white;
+                min-width: 80px;
+            }
+            QComboBox:hover {
+                border-color: #3498db;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #2c3e50;
+                margin-right: 5px;
+            }
+        """)
+        self.format_combo.currentTextChanged.connect(self.on_format_changed)
+        title_format_layout.addWidget(self.format_combo)
+
+        title_format_layout.addStretch()  # 添加弹性空间
+
+        main_tab_layout.addLayout(title_format_layout)
 
         # 创建文本区域布局（增加拉伸因子，占用更多空间）
         text_layout = self.create_text_area()
@@ -369,7 +576,7 @@ class JSONFormatterApp(QMainWindow):
         left_layout = QVBoxLayout(left_frame)
         left_layout.setContentsMargins(0, 0, 5, 0)
 
-        self.input_label = QLabel('输入 JSON：')
+        self.input_label = QLabel(f'输入 {self.current_format}：')
         self.input_label.setStyleSheet("""
             QLabel {
                 font-size: 14px;
@@ -388,7 +595,7 @@ class JSONFormatterApp(QMainWindow):
         input_container_layout.setSpacing(0)
 
         self.input_text = QTextEdit()
-        self.input_text.setPlaceholderText('请在此处输入需要格式化的 JSON 数据...')
+        self.input_text.setPlaceholderText(f'请在此处输入需要格式化的 {self.current_format} 数据...')
         self.input_text.setStyleSheet("QTextEdit { border: none; }")
         input_container_layout.addWidget(self.input_text)
 
@@ -399,7 +606,7 @@ class JSONFormatterApp(QMainWindow):
         right_layout = QVBoxLayout(right_frame)
         right_layout.setContentsMargins(5, 0, 0, 0)
 
-        self.output_label = QLabel('输出 JSON：')
+        self.output_label = QLabel(f'输出 {self.current_format}：')
         self.output_label.setStyleSheet("""
             QLabel {
                 font-size: 14px;
@@ -451,7 +658,7 @@ class JSONFormatterApp(QMainWindow):
 
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
-        self.output_text.setPlaceholderText('格式化后的 JSON 将显示在此处...')
+        self.output_text.setPlaceholderText(f'格式化后的 {self.current_format} 将显示在此处...')
         self.output_text.setStyleSheet("QTextEdit { border: none; }")
         output_container_layout.addWidget(self.output_text)
 
@@ -463,7 +670,19 @@ class JSONFormatterApp(QMainWindow):
         tree_tab_layout.setContentsMargins(0, 0, 0, 0)
 
         self.json_tree = JSONTreeWidget()
+        self.xml_tree = XMLTreeWidget()
+
+        # 将两个树形视图都添加到布局中
         tree_tab_layout.addWidget(self.json_tree)
+        tree_tab_layout.addWidget(self.xml_tree)
+
+        # 根据当前格式显示对应的树形视图
+        if self.current_format == 'JSON':
+            self.json_tree.show()
+            self.xml_tree.hide()
+        else:
+            self.json_tree.hide()
+            self.xml_tree.show()
 
         # 添加标签页
         self.output_tab_widget.addTab(text_tab, "📄 文本视图")
@@ -631,10 +850,10 @@ class JSONFormatterApp(QMainWindow):
         """
         设置信号连接
         """
-        self.beautify_btn.clicked.connect(self.beautify_json)
-        self.sort_btn.clicked.connect(self.sort_json)
-        self.minify_btn.clicked.connect(self.minify_json)
-        self.validate_btn.clicked.connect(self.validate_json)
+        self.beautify_btn.clicked.connect(self.beautify_format)
+        self.sort_btn.clicked.connect(self.sort_format)
+        self.minify_btn.clicked.connect(self.minify_format)
+        self.validate_btn.clicked.connect(self.validate_format)
         self.copy_btn.clicked.connect(self.copy_output)
         self.expand_all_btn.clicked.connect(self.expand_all_tree)
         self.collapse_all_btn.clicked.connect(self.collapse_all_tree)
@@ -669,8 +888,12 @@ class JSONFormatterApp(QMainWindow):
                 delta = event.angleDelta().y()
                 if delta > 0:  # 向上滚动，增大字体
                     self.increase_text_font_size()
+                    # 添加状态栏提示，帮助用户确认字体变化
+                    self.status_bar.showMessage(f'字体大小已调整为: {self.current_text_font_size}px', 2000)
                 else:  # 向下滚动，减小字体
                     self.decrease_text_font_size()
+                    # 添加状态栏提示，帮助用户确认字体变化
+                    self.status_bar.showMessage(f'字体大小已调整为: {self.current_text_font_size}px', 2000)
                 return True  # 事件已处理
         return super().eventFilter(obj, event)
 
@@ -834,6 +1057,82 @@ class JSONFormatterApp(QMainWindow):
         self.status_bar.showMessage(
             f'字体设置已保存：文本 {self.current_text_font_size}px，界面 {self.current_ui_font_size}px', 3000)
 
+    def on_format_changed(self, format_type):
+        """
+        格式类型改变时的处理方法
+        """
+        self.current_format = format_type
+
+        # 更新输入输出标签
+        self.input_label.setText(f'输入 {self.current_format}：')
+        self.output_label.setText(f'输出 {self.current_format}：')
+
+        # 更新占位符文本
+        self.input_text.setPlaceholderText(f'请在此处输入需要格式化的 {self.current_format} 数据...')
+        self.output_text.setPlaceholderText(f'格式化后的 {self.current_format} 将显示在此处...')
+
+        # 更新按钮提示文本
+        if format_type == 'JSON':
+            self.beautify_btn.setToolTip('格式化 JSON（美化显示）')
+            self.sort_btn.setToolTip('按键名排序并格式化 JSON')
+            self.minify_btn.setToolTip('压缩 JSON 为单行')
+            self.validate_btn.setToolTip('验证 JSON 格式是否正确')
+        else:  # XML
+            self.beautify_btn.setToolTip('格式化 XML（美化显示）')
+            self.sort_btn.setToolTip('按元素名排序并格式化 XML')
+            self.minify_btn.setToolTip('压缩 XML 为单行')
+            self.validate_btn.setToolTip('验证 XML 格式是否正确')
+
+        # 切换树形视图显示
+        if format_type == 'JSON':
+            self.json_tree.show()
+            self.xml_tree.hide()
+        else:  # XML
+            self.json_tree.hide()
+            self.xml_tree.show()
+
+        # 清空当前内容
+        self.clear_all()
+
+        # 更新状态栏
+        self.status_bar.showMessage(f'已切换到 {format_type} 格式模式')
+
+    def beautify_format(self):
+        """
+        根据当前格式类型美化格式
+        """
+        if self.current_format == 'JSON':
+            self.beautify_json()
+        else:  # XML
+            self.beautify_xml()
+
+    def sort_format(self):
+        """
+        根据当前格式类型排序格式
+        """
+        if self.current_format == 'JSON':
+            self.sort_json()
+        else:  # XML
+            self.sort_xml()
+
+    def minify_format(self):
+        """
+        根据当前格式类型压缩格式
+        """
+        if self.current_format == 'JSON':
+            self.minify_json()
+        else:  # XML
+            self.minify_xml()
+
+    def validate_format(self):
+        """
+        根据当前格式类型验证格式
+        """
+        if self.current_format == 'JSON':
+            self.validate_json()
+        else:  # XML
+            self.validate_xml()
+
     def save_font_settings(self):
         """
         保存字体大小设置
@@ -862,6 +1161,29 @@ class JSONFormatterApp(QMainWindow):
             self.show_message('错误', f'处理 JSON 时发生错误：\n{str(e)}', QMessageBox.Critical)
             return None
 
+    def get_input_xml(self):
+        """
+        获取并解析输入的 XML
+        """
+        try:
+            input_text = self.input_text.toPlainText().strip()
+            if not input_text:
+                self.show_message('警告', '请先输入 XML 数据！', QMessageBox.Warning)
+                return None
+
+            # 解析XML
+            xml_root = ET.fromstring(input_text)
+            return xml_root
+        except ET.ParseError as e:
+            self.show_message('XML 格式错误', f'输入的 XML 无效：\n{str(e)}', QMessageBox.Critical)
+            return None
+        except ExpatError as e:
+            self.show_message('XML 解析错误', f'XML 解析失败：\n{str(e)}', QMessageBox.Critical)
+            return None
+        except Exception as e:
+            self.show_message('错误', f'处理 XML 时发生错误：\n{str(e)}', QMessageBox.Critical)
+            return None
+
     def beautify_json(self):
         """
         美化 JSON 格式
@@ -875,6 +1197,29 @@ class JSONFormatterApp(QMainWindow):
                 # 更新树形视图
                 self.json_tree.populate_tree(json_data)
                 self.status_bar.showMessage('JSON 格式化完成')
+            except Exception as e:
+                self.show_message('错误', f'格式化失败：\n{str(e)}', QMessageBox.Critical)
+
+    def beautify_xml(self):
+        """
+        美化 XML 格式
+        """
+        xml_root = self.get_input_xml()
+        if xml_root is not None:
+            try:
+                # 将ElementTree转换为字符串
+                rough_string = ET.tostring(xml_root, encoding='unicode')
+                # 使用minidom美化格式
+                reparsed = minidom.parseString(rough_string)
+                formatted_xml = reparsed.toprettyxml(indent="    ")
+                # 移除空行
+                lines = [line for line in formatted_xml.split('\n') if line.strip()]
+                formatted_xml = '\n'.join(lines)
+                # 更新文本视图
+                self.output_text.setPlainText(formatted_xml)
+                # 更新XML树形视图
+                self.xml_tree.populate_tree(xml_root)
+                self.status_bar.showMessage('XML 格式化完成')
             except Exception as e:
                 self.show_message('错误', f'格式化失败：\n{str(e)}', QMessageBox.Critical)
 
@@ -895,6 +1240,50 @@ class JSONFormatterApp(QMainWindow):
             except Exception as e:
                 self.show_message('错误', f'排序失败：\n{str(e)}', QMessageBox.Critical)
 
+    def sort_xml(self):
+        """
+        排序并美化 XML（按属性和子元素名称排序）
+        """
+        xml_root = self.get_input_xml()
+        if xml_root is not None:
+            try:
+                # 递归排序XML元素
+                self._sort_xml_element(xml_root)
+                # 格式化输出
+                rough_string = ET.tostring(xml_root, encoding='unicode')
+                reparsed = minidom.parseString(rough_string)
+                formatted_xml = reparsed.toprettyxml(indent="    ")
+                # 移除空行
+                lines = [line for line in formatted_xml.split('\n') if line.strip()]
+                formatted_xml = '\n'.join(lines)
+                # 更新文本视图
+                self.output_text.setPlainText(formatted_xml)
+                # 更新XML树形视图
+                self.xml_tree.populate_tree(xml_root)
+                self.status_bar.showMessage('XML 排序并格式化完成')
+            except Exception as e:
+                self.show_message('错误', f'排序失败：\n{str(e)}', QMessageBox.Critical)
+
+    def _sort_xml_element(self, element):
+        """
+        递归排序XML元素的属性和子元素
+        """
+        # 排序属性
+        if element.attrib:
+            sorted_attrib = dict(sorted(element.attrib.items()))
+            element.clear()
+            element.attrib.update(sorted_attrib)
+
+        # 排序子元素
+        children = list(element)
+        if children:
+            # 按标签名排序子元素
+            children.sort(key=lambda x: x.tag)
+            element[:] = children
+            # 递归排序每个子元素
+            for child in children:
+                self._sort_xml_element(child)
+
     def minify_json(self):
         """
         压缩 JSON 为单行
@@ -907,6 +1296,35 @@ class JSONFormatterApp(QMainWindow):
                 self.status_bar.showMessage('JSON 压缩完成')
             except Exception as e:
                 self.show_message('错误', f'压缩失败：\n{str(e)}', QMessageBox.Critical)
+
+    def minify_xml(self):
+        """
+        压缩 XML 为单行（移除空白和换行）
+        """
+        xml_root = self.get_input_xml()
+        if xml_root is not None:
+            try:
+                # 移除所有元素的空白文本
+                self._remove_xml_whitespace(xml_root)
+                # 转换为字符串，不添加缩进
+                minified_xml = ET.tostring(xml_root, encoding='unicode')
+                # 移除多余的空白字符
+                minified_xml = ' '.join(minified_xml.split())
+                self.output_text.setPlainText(minified_xml)
+                self.status_bar.showMessage('XML 压缩完成')
+            except Exception as e:
+                self.show_message('错误', f'压缩失败：\n{str(e)}', QMessageBox.Critical)
+
+    def _remove_xml_whitespace(self, element):
+        """
+        递归移除XML元素中的空白文本
+        """
+        if element.text:
+            element.text = element.text.strip() or None
+        if element.tail:
+            element.tail = element.tail.strip() or None
+        for child in element:
+            self._remove_xml_whitespace(child)
 
     def validate_json(self):
         """
@@ -924,6 +1342,28 @@ class JSONFormatterApp(QMainWindow):
         except json.JSONDecodeError as e:
             self.show_message('验证结果', f'JSON 格式错误：\n{str(e)}', QMessageBox.Critical)
             self.status_bar.showMessage('JSON 格式验证失败')
+        except Exception as e:
+            self.show_message('错误', f'验证时发生错误：\n{str(e)}', QMessageBox.Critical)
+
+    def validate_xml(self):
+        """
+        验证 XML 格式
+        """
+        input_text = self.input_text.toPlainText().strip()
+        if not input_text:
+            self.show_message('警告', '请先输入 XML 数据！', QMessageBox.Warning)
+            return
+
+        try:
+            ET.fromstring(input_text)
+            self.show_message('验证结果', 'XML 格式正确！✅', QMessageBox.Information)
+            self.status_bar.showMessage('XML 格式验证通过')
+        except ET.ParseError as e:
+            self.show_message('验证结果', f'XML 格式错误：\n{str(e)}', QMessageBox.Critical)
+            self.status_bar.showMessage('XML 格式验证失败')
+        except ExpatError as e:
+            self.show_message('验证结果', f'XML 解析错误：\n{str(e)}', QMessageBox.Critical)
+            self.status_bar.showMessage('XML 格式验证失败')
         except Exception as e:
             self.show_message('错误', f'验证时发生错误：\n{str(e)}', QMessageBox.Critical)
 
@@ -960,17 +1400,26 @@ class JSONFormatterApp(QMainWindow):
         """
         展开树形视图中的所有节点
         """
-        self.json_tree.expandAll()
+        if self.current_format == 'JSON':
+            self.json_tree.expandAll()
+        else:
+            self.xml_tree.expandAll()
         self.status_bar.showMessage('已展开所有节点')
 
     def collapse_all_tree(self):
         """
         折叠树形视图中的所有节点
         """
-        self.json_tree.collapseAll()
-        # 保持根节点展开
-        if self.json_tree.topLevelItemCount() > 0:
-            self.json_tree.expandToDepth(0)
+        if self.current_format == 'JSON':
+            self.json_tree.collapseAll()
+            # 保持根节点展开
+            if self.json_tree.topLevelItemCount() > 0:
+                self.json_tree.expandToDepth(0)
+        else:
+            self.xml_tree.collapseAll()
+            # 保持根节点展开
+            if self.xml_tree.topLevelItemCount() > 0:
+                self.xml_tree.expandToDepth(0)
         self.status_bar.showMessage('已折叠所有节点')
 
     def show_message(self, title, message, icon=QMessageBox.Information):
