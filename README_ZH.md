@@ -109,7 +109,7 @@
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --windowed --name="JSON格式化工具" main.py
+pyinstaller --onefile --windowed --name="离线格式化工具" main.py
 ```
 
 #### 方式二：优化打包（15-20MB）
